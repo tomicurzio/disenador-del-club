@@ -35,7 +35,7 @@ fieldset{padding:18px 20px!important;border-bottom:1px solid var(--line)!importa
 fieldset:last-child{border-bottom:0!important}
 @media (min-width:901px){.panel{position:sticky;top:max(16px,env(safe-area-inset-top,0px));max-height:calc(100vh - 32px);overflow:auto;scrollbar-width:none}.panel::-webkit-scrollbar{display:none}}
 fieldset{border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
-.legend{font-family:var(--display);font-weight:400;font-size:22px;line-height:1.1;letter-spacing:.02em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+.legend{font-family:var(--display);font-weight:400;font-size:22px;line-height:1.1;letter-spacing:.02em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;background:var(--accent-bg,var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;width:fit-content}
 label{display:grid;gap:4px;font-size:12px;color:var(--muted);min-width:0}
 .rowTY{display:grid;grid-template-columns:1fr 92px;gap:10px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -48,7 +48,7 @@ input[type=range]{padding:0;accent-color:var(--accent)}
 .hint{font-size:11.5px;color:var(--muted)}
 button{font:inherit;font-weight:400;border-radius:0;border:1px solid var(--line);background:var(--soft);color:var(--ink);padding:9px 12px;cursor:pointer}
 button:hover{border-color:var(--muted)}
-button.primary{background:var(--accent);border-color:var(--accent);color:#1a1a18;font-family:var(--display);text-transform:uppercase;font-size:16px;padding:12px 16px}
+button.primary{background:var(--accent-bg,var(--accent));border-color:transparent;color:#1a1a18;font-family:var(--display);text-transform:uppercase;font-size:16px;padding:12px 16px}
 button:disabled{opacity:.5;cursor:default}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
 .drop{border:1px dashed var(--line);border-radius:0;padding:10px;display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center;cursor:pointer;min-width:0}
@@ -390,10 +390,11 @@ function renderAll(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
   renderPiece(cur,$("big"),Math.min(1,1700/cur.H));
   $("curName").textContent=cur.label;$("curSize").textContent=`${cur.W}×${cur.H}`;
 });}
-const syncAccent=()=>{const st=accentOf();document.documentElement.style.setProperty("--accent",st[Math.floor(st.length/2)][1]);
+const accentCss=st=>st.length===1?st[0][1]:`linear-gradient(90deg,${st.map(([p,c])=>c+" "+Math.round(p*100)+"%").join(",")})`;
+const syncAccent=()=>{const st=accentOf(),r=document.documentElement.style;r.setProperty("--accent",st.length>2?st[0][1]:st[Math.floor(st.length/2)][1]);r.setProperty("--accent-bg",st.length===1?st[0][1]:accentCss(st.length===2?st:st));
   document.querySelectorAll(".sw").forEach(b=>b.setAttribute("aria-checked",b.dataset.key===$("f_accKey").value));};
 for(const a of ACCENTS){const b=document.createElement("button");b.type="button";b.className="sw";b.dataset.key=a.key;b.title=a.name;b.setAttribute("role","radio");b.setAttribute("aria-label",a.name);
-  b.style.background=a.stops.length===1?a.stops[0][1]:`linear-gradient(90deg,${a.stops.map(([p,c])=>c+" "+Math.round(p*100)+"%").join(",")})`;
+  b.style.background=accentCss(a.stops);
   b.onclick=()=>{$("f_accKey").value=a.key;syncAccent();renderAll();saveDraft();};$("swatches").appendChild(b);}
 $("f_acc").addEventListener("input",()=>{$("f_accKey").value="custom";});
 // slider and number box move together; the number can go past the slider's range
