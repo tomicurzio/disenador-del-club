@@ -1,0 +1,9 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# the page calls /api/completar (same path as on Vercel)
+[[redirects]]
+  from = "/api/completar"
+  to = "/.netlify/functions/completar"
+  status = 200
