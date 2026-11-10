@@ -259,19 +259,19 @@ function drawTitle(x,d,{maxFs,W,cx,left,bottom,align,room}){
   lines.forEach((l,i)=>{const lw=x.measureText(l).width,lx=align==="center"?cx-lw/2:left;x.fillStyle=paint(x,d.acc,lx,lw);x.fillText(l,align==="center"?cx:left,bottom-(lines.length-1-i)*step);});
   return bottom-(lines.length-1)*step-ch;
 }
-// photo stays fixed; title, info row and credits stack below it with equal gaps (G) and equal outer margins
+// photo stays fixed; title, info row and credits stack below it with the Figma gaps (G1 title->info, G2 info->credits) and equal outer margins
 function bottomStack(x,d,{top,H,cx,u,maxFs,W,credits,cFs,cW,cStep}){
-  const G=40*u,Mmin=45*u,iFs=45*u,iCap=capH(x,`${iFs}px ${BF}`),cFont=`${cFs}px ${BF}`,cCap=capH(x,cFont);
+  const G1=80*u,G2=47*u,Mmin=55*u,iFs=45*u,iCap=capH(x,`${iFs}px ${BF}`),cFont=`${cFs}px ${BF}`,cCap=capH(x,cFont);
   const t=document.createElement("canvas").getContext("2d");const nl=Math.round((drawRich(t,credits,{font:cFont,top:0,W:cW,step:cStep,align:"center",cx})-0)/cStep);
   const C=cCap+(nl-1)*cStep,avail=H-top;
-  const room=avail-2*Mmin-iCap-C-2*G;
+  const room=avail-2*Mmin-iCap-C-G1-G2;
   const {lines,fs}=fitTitle(x,d.title,maxFs,W,2,room);const tCap=capH(x,`${fs}px ${TF}`);
   const T=tCap+(lines.length-1)*tCap*1.3;
-  const M=(avail-T-iCap-C-2*G)/2;
+  const M=(avail-T-iCap-C-G1-G2)/2;
   const tBottom=top+M+T;
   drawTitle(x,d,{maxFs,W,cx,bottom:tBottom,room,align:"center"});
-  const iTop=tBottom+G;infoRow(x,d,{fs:iFs,cy:iTop+iCap/2,cx,gap:15*u});
-  const cTop=iTop+iCap+G;drawRich(x,credits,{font:cFont,top:cTop-(cStep-cCap)/2,W:cW,step:cStep,align:"center",cx});
+  const iTop=tBottom+G1;infoRow(x,d,{fs:iFs,cy:iTop+iCap/2,cx,gap:15*u});
+  const cTop=iTop+iCap+G2;drawRich(x,credits,{font:cFont,top:cTop-(cStep-cCap)/2,W:cW,step:cStep,align:"center",cx});
 }
 function runs(text,marks){ // split text into [{t,mark}]
   const flags=new Array(text.length).fill(false);
