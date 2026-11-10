@@ -7,3 +7,8 @@
   from = "/api/completar"
   to = "/.netlify/functions/completar"
   status = 200
+
+[[redirects]]
+  from = "/api/fotos"
+  to = "/.netlify/functions/fotos"
+  status = 200

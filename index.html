@@ -55,6 +55,13 @@ button:disabled{opacity:.5;cursor:default}
 .drop b{display:block;color:var(--ink);font-size:13px}
 .status{font-size:12px;color:var(--muted);min-height:1.2em}
 .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+.stills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:340px;overflow:auto;scrollbar-width:none}
+.stills::-webkit-scrollbar{display:none}
+.still{position:relative;display:block}
+.still img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--soft)}
+.still .pick{position:absolute;inset:auto 0 0 0;display:flex;gap:4px;padding:4px}
+.still .pick button{flex:1;padding:4px 0;font-size:11px;background:rgba(18,18,17,.85)}
+.still .pick button:hover{border-color:var(--accent)}
 .swatches{display:flex;flex-wrap:wrap;gap:8px}
 .sw{width:40px;height:40px;padding:0;border-radius:50%;border:2px solid var(--line)}
 .sw[aria-checked="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel) inset}
@@ -148,6 +155,11 @@ button:disabled{opacity:.5;cursor:default}
 
     <fieldset aria-labelledby="lg4">
       <h2 class="legend" id="lg4">Fotos</h2>
+      <div class="btns" id="stillsBar" hidden>
+        <button type="button" id="findStills">Buscar fotos</button>
+        <span class="status" id="stillsStatus"></span>
+      </div>
+      <div class="stills" id="stills" hidden></div>
       <div class="drop" id="drop1" tabindex="0"><img id="th1" alt=""><div><b>Foto principal</b><span class="hint">Post, Historia 1 y A3. Tocá o arrastrá.</span></div></div>
       <label>Encuadre horizontal<input id="fx1" type="range" min="0" max="100" value="47"></label>
       <div class="drop" id="drop2" tabindex="0"><img id="th2" alt=""><div><b>Segunda foto</b><span class="hint">Historia 2. Tocá o arrastrá.</span></div></div>
@@ -371,6 +383,33 @@ $("form").addEventListener("submit",e=>e.preventDefault());
 
 /* ---------- photos ---------- */
 function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});}
+/* ---------- stills from TMDB (only on the hosted site) ---------- */
+$("findStills").onclick=async()=>{
+  const st=$("stillsStatus"),box=$("stills"),title=$("f_title").value.trim(),year=$("f_year").value.trim();
+  if(!title){st.className="status warn";st.textContent="Escribí el título primero.";return;}
+  $("findStills").disabled=true;st.className="status";st.textContent="Buscando fotos…";
+  try{
+    const res=await fetch(`/api/fotos?title=${encodeURIComponent(title)}&year=${encodeURIComponent(year)}`);
+    if(!res.ok)throw 0;const r=await res.json();
+    if(r.notFound){st.className="status warn";st.textContent=year?`No encontré "${title}" de ${year}.`:`No encontré "${title}".`;box.hidden=true;return;}
+    if(!r.stills.length){st.className="status warn";st.textContent="No hay fotos para esta película.";box.hidden=true;return;}
+    st.className="status ok";st.textContent=`${r.title} (${r.year}): ${r.stills.length} fotos. Elegí 1 o 2 en cada una.`;
+    box.innerHTML="";
+    for(const f of r.stills){
+      const el=document.createElement("div");el.className="still";
+      el.innerHTML=`<img alt="" loading="lazy"><div class="pick"><button type="button" data-n="1">Principal</button><button type="button" data-n="2">Segunda</button></div>`;
+      el.querySelector("img").src=f.thumb;
+      el.querySelectorAll("button").forEach(b=>b.onclick=async()=>{
+        st.className="status";st.textContent="Cargando la foto en alta…";
+        try{await setPhoto(+b.dataset.n,`/api/fotos?img=${encodeURIComponent(f.path)}`);st.className="status ok";st.textContent=b.dataset.n==="1"?"Foto principal lista.":"Segunda foto lista.";}
+        catch(e){st.className="status warn";st.textContent="No se pudo cargar esa foto.";}
+      });
+      box.appendChild(el);
+    }
+    box.hidden=false;
+  }catch(e){st.className="status warn";st.textContent="No se pudieron buscar fotos.";}
+  finally{$("findStills").disabled=false;}
+};
 async function setPhoto(n,src){imgs[n]=await loadImg(src);$("th"+n).src=src;htCache.clear();renderAll();}
 for(const n of [1,2]){
   const drop=$("drop"+n),file=$("file"+n);
@@ -455,6 +494,7 @@ function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft")
   renderAll();
   const c=window.claude;if(!c||!c.use){
     // Vercel: the button calls our own function, which talks to Claude with the club's API key
+    $("stillsBar").hidden=false;
     sample={json:async()=>{const res=await fetch("/api/completar",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title:$("f_title").value.trim(),year:$("f_year").value.trim()})});
       if(res.status===429)throw{code:"rate_limited"};if(!res.ok)throw{code:"error"};return res.json();}};
     return;}
