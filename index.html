@@ -261,11 +261,13 @@ function drawTitle(x,d,{maxFs,W,cx,left,bottom,align,room}){
 }
 // photo stays fixed; title, info row and credits stack below it with the Figma gaps (G1 title->info, G2 info->credits) and equal outer margins
 function bottomStack(x,d,{top,H,cx,u,maxFs,W,credits,cFs,cW,cStep}){
-  const G1=80*u,G2=47*u,Mmin=55*u,iFs=45*u,iCap=capH(x,`${iFs}px ${BF}`),cFont=`${cFs}px ${BF}`,cCap=capH(x,cFont);
+  let G1=80*u,G2=47*u,Mmin=55*u;const iFs=45*u,iCap=capH(x,`${iFs}px ${BF}`),cFont=`${cFs}px ${BF}`,cCap=capH(x,cFont);
   const t=document.createElement("canvas").getContext("2d");const nl=Math.round((drawRich(t,credits,{font:cFont,top:0,W:cW,step:cStep,align:"center",cx})-0)/cStep);
   const C=cCap+(nl-1)*cStep,avail=H-top;
-  const room=avail-2*Mmin-iCap-C-G1-G2;
-  const {lines,fs}=fitTitle(x,d.title,maxFs,W,2,room);const tCap=capH(x,`${fs}px ${TF}`);
+  // two-line titles use the tighter gaps of the two-line Figma pieces, so the title can stay big
+  let room=avail-2*40*u-iCap-C-34*u-40*u;
+  const {lines,fs}=fitTitle(x,d.title,maxFs,W,2,room);
+  if(lines.length>1){G1=34*u;G2=40*u;}else room=avail-2*Mmin-iCap-C-G1-G2;const tCap=capH(x,`${fs}px ${TF}`);
   const T=tCap+(lines.length-1)*tCap*1.3;
   const M=(avail-T-iCap-C-G1-G2)/2;
   const tBottom=top+M+T;
