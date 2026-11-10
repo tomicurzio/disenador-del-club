@@ -1,0 +1,6 @@
+# El diseñador del club
+
+Arma las cinco piezas del cine club (post, sinopsis, historia 1, historia 2 y A3) a partir de los datos de la función y dos fotos.
+
+- `index.html`: la página completa.
+- `api/completar.js`: función de Vercel para el botón "Completar con Claude". Necesita la variable de entorno `ANTHROPIC_API_KEY`.
