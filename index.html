@@ -141,16 +141,16 @@ input[type=range]{border-radius:0!important}
     <fieldset aria-labelledby="lg1">
       <h2 class="legend" id="lg1">Película</h2>
       <div class="rowTY">
-        <label>Título<input id="f_title" value="Le Bonheur"></label>
-        <label>Año<input id="f_year" value="1965" inputmode="numeric" maxlength="4" placeholder="Opcional"></label>
+        <label>Título<input id="f_title" value="After Hours"></label>
+        <label>Año<input id="f_year" value="1985" inputmode="numeric" maxlength="4" placeholder="Opcional"></label>
       </div>
       <div class="btns">
         <button type="button" id="draft">Completar con Claude</button>
         <span class="status" id="draftStatus"></span>
       </div>
-      <label>Dirigida por<input id="f_dir" value="Agnès Varda"></label>
-      <label>Producida por<input id="f_prod" value="Mag Bodard"></label>
-      <label>Escrita por<input id="f_writer" value="Agnès Varda"></label>
+      <label>Dirigida por<input id="f_dir" value="Martin Scorsese"></label>
+      <label>Producida por<input id="f_prod" value="Amy Robinson, Griffin Dunne y Robert F. Colesberry"></label>
+      <label>Escrita por<input id="f_writer" value="Joseph Minion"></label>
     </fieldset>
 
     <fieldset aria-labelledby="lg2">
@@ -165,8 +165,8 @@ input[type=range]{border-radius:0!important}
 
     <fieldset aria-labelledby="lg3">
       <h2 class="legend" id="lg3">Sinopsis</h2>
-      <label>Texto<textarea id="f_syn">Un carpintero feliz con su esposa y sus hijos se enamora de otra mujer y cree que puede amar a las dos sin que nada cambie.</textarea></label>
-      <label>Palabras resaltadas<input id="f_marks" value="feliz, otra mujer, amar a las dos"></label>
+      <label>Texto<textarea id="f_syn">Un oficinista sale una noche al SoHo para ver a una chica y queda atrapado en una cadena de desastres que no lo dejan volver a casa.</textarea></label>
+      <label>Palabras resaltadas<input id="f_marks" value="una noche, atrapado, volver a casa"></label>
       <span class="hint">Separalas con comas. Tienen que aparecer tal cual en el texto.</span>
     </fieldset>
 
@@ -503,18 +503,23 @@ No inventes créditos: si dudás, dejá el campo vacío.`,{modelTier:"default"})
 
 /* ---------- remember the last film in this browser ---------- */
 const FIELDS=["f_title","f_year","f_dir","f_prod","f_writer","f_place","f_date","f_hour","f_syn","f_marks","f_acc","f_accKey","fx1","fx2","pitch"];
-function saveDraft(){try{localStorage.setItem("taller-draft",JSON.stringify(Object.fromEntries(FIELDS.map(f=>[f,$(f).value]))));}catch(e){}}
-function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft")||"null");if(d)FIELDS.forEach(f=>{if(d[f]!=null)$(f).value=d[f];});}catch(e){}}
+function saveDraft(){try{localStorage.setItem("taller-draft-2",JSON.stringify(Object.fromEntries(FIELDS.map(f=>[f,$(f).value]))));}catch(e){}}
+function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft-2")||"null");if(d){FIELDS.forEach(f=>{if(d[f]!=null)$(f).value=d[f];});return true;}}catch(e){}return false;}
 
 /* ---------- boot ---------- */
 (async()=>{
-  loadDraft();{const v=+$("pitch").value;if(v)$("pitchR").value=Math.min(9,Math.max(2,v));}syncAccent();
+  const hadDraft=loadDraft();{const v=+$("pitch").value;if(v)$("pitchR").value=Math.min(9,Math.max(2,v));}syncAccent();
   try{await Promise.all([document.fonts.load(`40px "Gilroy Club"`),document.fonts.load(`40px "Neue Montreal Club"`),document.fonts.load(`40px "Archivo Black"`),document.fonts.load(`40px "Inter"`)]);}catch(e){}
   imgs[1]=await loadImg(SAMPLE1);imgs[2]=await loadImg(SAMPLE2);$("th1").src=SAMPLE1;$("th2").src=SAMPLE2;
   renderAll();
   const c=window.claude;if(!c||!c.use){
     // Vercel: the button calls our own function, which talks to Claude with the club's API key
     $("stillsBar").hidden=false;
+    // first visit: bring real After Hours stills so the default film matches its photos
+    if(!hadDraft)fetch("/api/fotos?title=After%20Hours&year=1985").then(r=>r.ok?r.json():null).then(async r=>{
+      const st=r&&r.stills||[];if(st.length<2)return;
+      try{await setPhoto(1,`/api/fotos?img=${encodeURIComponent(st[0].path)}`);await setPhoto(2,`/api/fotos?img=${encodeURIComponent(st[1].path)}`);}catch(e){}
+    }).catch(()=>{});
     sample={json:async()=>{const res=await fetch("/api/completar",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title:$("f_title").value.trim(),year:$("f_year").value.trim()})});
       if(res.status===429)throw{code:"rate_limited"};if(!res.ok)throw{code:"error"};return res.json();}};
     return;}
