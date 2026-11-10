@@ -25,13 +25,22 @@ No inventes créditos: si dudás, dejá el campo vacío.`;
     headers: {
       "x-api-key": process.env.ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
+      "anthropic-beta": "server-side-fallback-2026-07-01",
       "content-type": "application/json",
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 600, messages: [{ role: "user", content: prompt }] }),
+    // low effort keeps thinking short (a quick lookup), fallbacks reroute the rare safety decline
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 2000,
+      output_config: { effort: "low" },
+      fallbacks: "default",
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
   if (res.status === 429) return new Response("Rate limited", { status: 429 });
   if (!res.ok) return new Response("Upstream error", { status: 502 });
   const data = await res.json();
+  if (data.stop_reason === "refusal") return new Response("Declined", { status: 502 });
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return new Response("Bad answer", { status: 502 });
