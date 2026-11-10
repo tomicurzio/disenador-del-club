@@ -517,8 +517,8 @@ function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft-2
     $("stillsBar").hidden=false;
     // first visit: bring real After Hours stills so the default film matches its photos
     if(!hadDraft)fetch("/api/fotos?title=After%20Hours&year=1985").then(r=>r.ok?r.json():null).then(async r=>{
-      const st=r&&r.stills||[];if(st.length<2)return;
-      try{await setPhoto(1,`/api/fotos?img=${encodeURIComponent(st[0].path)}`);await setPhoto(2,`/api/fotos?img=${encodeURIComponent(st[1].path)}`);}catch(e){}
+      const st=r&&r.stills||[];if(st.length<2)return;const s2=st[2]||st[0];
+      try{await setPhoto(1,`/api/fotos?img=${encodeURIComponent(st[1].path)}`);await setPhoto(2,`/api/fotos?img=${encodeURIComponent(s2.path)}`);}catch(e){}
     }).catch(()=>{});
     sample={json:async()=>{const res=await fetch("/api/completar",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({title:$("f_title").value.trim(),year:$("f_year").value.trim()})});
       if(res.status===429)throw{code:"rate_limited"};if(!res.ok)throw{code:"error"};return res.json();}};
