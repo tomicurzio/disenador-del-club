@@ -112,6 +112,19 @@ button:disabled{opacity:.5;cursor:default}
 .thumb:hover{border-color:var(--muted)}
 .note{font-size:12px;color:var(--muted);border-left:2px solid var(--accent);padding-left:10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* rounded UI (the pieces themselves stay square) */
+.panel{border-radius:16px!important;overflow:hidden}
+@media (min-width:901px){.panel{overflow:auto}}
+input,textarea,select,button{border-radius:10px!important}
+input[type=range]{border-radius:0!important}
+.sw{border-radius:50%!important}
+.drop{border-radius:12px!important}
+.drop img{border-radius:6px!important}
+.stage{border-radius:16px}
+.thumb{border-radius:10px}
+.still img{border-radius:8px}
+.still .pick button{border-radius:6px!important}
 </style>
 </head>
 <body>
