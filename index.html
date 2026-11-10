@@ -64,6 +64,8 @@ button:disabled{opacity:.5;cursor:default}
 .still .pick{position:absolute;inset:auto 0 0 0;display:flex;gap:4px;padding:4px}
 .still .pick button{flex:1;padding:4px 0;font-size:11px;background:rgba(18,18,17,.85)}
 .still .pick button:hover{border-color:var(--accent)}
+.pitchRow{display:grid;grid-template-columns:1fr 72px;gap:10px;align-items:center}
+.pitchRow input[type=number]{padding:6px 8px}
 .swatches{display:flex;flex-wrap:wrap;gap:8px}
 .sw{width:40px;height:40px;padding:0;border-radius:50%;border:2px solid var(--line)}
 .sw[aria-checked="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel) inset}
@@ -181,7 +183,7 @@ input[type=range]{border-radius:0!important}
       <label>Encuadre horizontal<input id="fx2" type="range" min="0" max="100" value="55"></label>
       <input type="file" id="file1" accept="image/*" hidden>
       <input type="file" id="file2" accept="image/*" hidden>
-      <label>Tamaño de la trama<input id="pitch" type="range" min="2" max="9" step="0.5" value="4.5"></label>
+      <label>Tamaño de la trama<span class="pitchRow"><input id="pitchR" type="range" min="2" max="9" step="0.5" value="4.5" aria-label="Tamaño de la trama"><input id="pitch" type="number" min="1" max="30" step="0.1" value="4.5" inputmode="decimal" aria-label="Tamaño de la trama, número"></span></label>
     </fieldset>
 
     <fieldset aria-labelledby="lg5">
@@ -234,7 +236,7 @@ function data(){
   return {title:$("f_title").value.trim(),year:$("f_year").value.trim(),dir:$("f_dir").value.trim(),prod:$("f_prod").value.trim(),
     writer:$("f_writer").value.trim(),place:$("f_place").value.trim(),day,hour:$("f_hour").value.trim(),
     syn:$("f_syn").value.trim(),marks:$("f_marks").value.split(",").map(s=>s.trim()).filter(Boolean),
-    acc:accentOf(),fx1:+$("fx1").value/100,fx2:+$("fx2").value/100,pitch:+$("pitch").value};
+    acc:accentOf(),fx1:+$("fx1").value/100,fx2:+$("fx2").value/100,pitch:Math.min(30,Math.max(1,+$("pitch").value||4.5))};
 }
 const slug=t=>t.toLowerCase().replace(/[\\/:*?"<>|]/g,"").trim()||"pieza";
 
@@ -393,6 +395,9 @@ for(const a of ACCENTS){const b=document.createElement("button");b.type="button"
   b.style.background=a.stops.length===1?a.stops[0][1]:`linear-gradient(90deg,${a.stops.map(([p,c])=>c+" "+Math.round(p*100)+"%").join(",")})`;
   b.onclick=()=>{$("f_accKey").value=a.key;syncAccent();renderAll();saveDraft();};$("swatches").appendChild(b);}
 $("f_acc").addEventListener("input",()=>{$("f_accKey").value="custom";});
+// slider and number box move together; the number can go past the slider's range
+$("pitchR").addEventListener("input",()=>{$("pitch").value=$("pitchR").value;});
+$("pitch").addEventListener("input",()=>{const v=+$("pitch").value;if(v)$("pitchR").value=Math.min(9,Math.max(2,v));});
 let deb=0;$("form").addEventListener("input",()=>{syncAccent();clearTimeout(deb);deb=setTimeout(()=>{renderAll();saveDraft();},120);});
 $("form").addEventListener("submit",e=>e.preventDefault());
 
@@ -503,7 +508,7 @@ function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft")
 
 /* ---------- boot ---------- */
 (async()=>{
-  loadDraft();syncAccent();
+  loadDraft();{const v=+$("pitch").value;if(v)$("pitchR").value=Math.min(9,Math.max(2,v));}syncAccent();
   try{await Promise.all([document.fonts.load(`40px "Gilroy Club"`),document.fonts.load(`40px "Neue Montreal Club"`),document.fonts.load(`40px "Archivo Black"`),document.fonts.load(`40px "Inter"`)]);}catch(e){}
   imgs[1]=await loadImg(SAMPLE1);imgs[2]=await loadImg(SAMPLE2);$("th1").src=SAMPLE1;$("th2").src=SAMPLE2;
   renderAll();
