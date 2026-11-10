@@ -224,6 +224,7 @@ const ACCENTS=[
  {key:"azul",name:"Azul",stops:[[0,"#7d94c9"]]},
  {key:"verde",name:"Verde",stops:[[0,"#5a8c71"]]},
  {key:"oscars",name:"Oscars",stops:[[0.42,"#f0df16"],[0.74,"#f5aa11"]]},
+ {key:"adele",name:"Adèle",stops:[[0,"#d97575"],[0.18,"#dca27b"],[0.35,"#d9d283"],[0.57,"#5a8c71"],[0.8,"#7d94c9"],[1,"#bc85cc"]]},
 ];
 function accentOf(){const k=$("f_accKey").value;const a=ACCENTS.find(a=>a.key===k);return a?a.stops:[[0,$("f_acc").value]];}
 // returns a fillStyle for a box spanning x0..x0+w
