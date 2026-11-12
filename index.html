@@ -152,7 +152,7 @@ input[type=range]{border-radius:0!important}
         <label>Año<input id="f_year" value="1985" inputmode="numeric" maxlength="4" placeholder="Opcional"></label>
       </div>
       <div class="btns">
-        <button type="button" id="draft">Completar con Claude</button>
+        <button type="button" id="draft">Completar datos</button>
         <span class="status" id="draftStatus"></span>
       </div>
       <label>Dirigida por<input id="f_dir" value="Martin Scorsese"></label>
@@ -545,11 +545,11 @@ $("draft").onclick=async()=>{
 "synopsis": una sola oración en español rioplatense neutro, de 110 a 160 caracteres, sin spoilers del final, que presente la premisa,
 "highlights": array con exactamente 3 frases cortas (1 a 3 palabras) copiadas TEXTUALMENTE de la sinopsis, las más evocadoras.
 No inventes créditos: si dudás, dejá el campo vacío.`,{modelTier:"default"});
-    if(r.notFound){st.className="status warn";st.textContent=`No encontré "${title}" de ${year}. Revisá el año o borralo.`;return;}
+    if(r.notFound){st.className="status warn";st.textContent=year?`No encontré "${title}" de ${year}. Revisá el año o borralo.`:`No encontré "${title}".`;return;}
     if(r.year&&!year)$("f_year").value=r.year; if(r.director)$("f_dir").value=r.director;
     $("f_prod").value=r.producers||""; if(r.writer)$("f_writer").value=r.writer;
     if(r.synopsis)$("f_syn").value=r.synopsis; if(Array.isArray(r.highlights))$("f_marks").value=r.highlights.join(", ");
-    st.className="status ok";st.textContent="Listo. Revisá los créditos antes de exportar.";renderAll();saveDraft();
+    st.className="status ok";st.textContent="Listo. Revisá los datos y marcá las palabras a resaltar.";renderAll();saveDraft();
   }catch(e){st.className="status warn";st.textContent=e&&e.code==="rate_limited"?"Demasiados pedidos, probá en un rato.":"No se pudo completar. Cargalo a mano.";}
   finally{$("draft").disabled=false;}
 };
@@ -566,7 +566,7 @@ function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft-2
   imgs[1]=await loadImg(SAMPLE1);imgs[2]=await loadImg(SAMPLE2);$("th1").src=SAMPLE1;$("th2").src=SAMPLE2;
   renderAll();
   const c=window.claude;if(!c||!c.use){
-    // Vercel: the button calls our own function, which talks to Claude with the club's API key
+    // hosted site: the button calls our own function, which looks the film up on TMDB
     $("stillsBar").hidden=false;
     // first visit: bring real After Hours stills so the default film matches its photos
     if(!hadDraft)fetch("/api/fotos?title=After%20Hours&year=1985").then(r=>r.ok?r.json():null).then(async r=>{
