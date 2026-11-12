@@ -104,11 +104,18 @@ button:disabled{opacity:.5;cursor:default}
   body{padding:16px!important;box-sizing:border-box}
   .wrap{height:100%;max-width:none}
   .panel{position:static!important;height:100%;max-height:none!important;overflow:auto}
-  .board{position:static!important;height:100%;grid-template-rows:auto minmax(0,1fr) auto auto}
+  .board{position:static!important;height:100%;grid-template-rows:auto minmax(0,1fr) auto auto auto}
   .stage{height:auto!important;min-height:0!important;position:relative;padding:0!important}
   .stage canvas{position:absolute;inset:0;margin:auto;max-width:calc(100% - 48px);max-height:calc(100% - 48px)}
 }
 .strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
+.photoBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.photoBar[hidden]{display:none}
+.photoBar img{width:56px;height:40px;object-fit:cover;border-radius:6px;background:var(--soft)}
+.pbText{flex:1;min-width:180px;display:grid;gap:2px}
+.pbText b{font-size:13px;color:var(--ink);font-weight:500}
+#big.grab{cursor:grab;touch-action:pan-y}
+#big.grabbing{cursor:grabbing}
 .thumb{flex:0 0 auto;display:grid;gap:6px;padding:6px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:11px;text-align:left}
 .thumb canvas{height:110px;width:auto;display:block}
 .thumb span{font-family:var(--display);text-transform:uppercase;letter-spacing:.03em}
@@ -178,11 +185,10 @@ input[type=range]{border-radius:0!important}
       </div>
       <div class="stills" id="stills" hidden></div>
       <div class="drop" id="drop1" tabindex="0"><img id="th1" alt=""><div><b>Foto principal</b><span class="hint">Post, Historia 1 y A3. Tocá o arrastrá.</span></div></div>
-      <label>Encuadre horizontal<input id="fx1" type="range" min="0" max="100" value="47"></label>
       <div class="drop" id="drop2" tabindex="0"><img id="th2" alt=""><div><b>Segunda foto</b><span class="hint">Historia 2. Tocá o arrastrá.</span></div></div>
-      <label>Encuadre horizontal<input id="fx2" type="range" min="0" max="100" value="55"></label>
       <input type="file" id="file1" accept="image/*" hidden>
       <input type="file" id="file2" accept="image/*" hidden>
+      <input type="file" id="fileP" accept="image/*" hidden>
       <label>Tamaño de la trama<span class="pitchRow"><input id="pitchR" type="range" min="2" max="9" step="0.5" value="4.5" aria-label="Tamaño de la trama"><input id="pitch" type="number" min="1" max="30" step="0.1" value="4.5" inputmode="decimal" aria-label="Tamaño de la trama, número"></span></label>
     </fieldset>
 
@@ -203,6 +209,11 @@ input[type=range]{border-radius:0!important}
       </div>
     </div>
     <div class="stage"><canvas id="big" aria-label="Vista previa"></canvas></div>
+    <div class="photoBar" id="photoBar">
+      <img id="thP" alt="">
+      <div class="pbText"><b id="pbName">Usa la foto principal</b><span class="hint">Arrastrá la foto en la vista previa para encuadrarla.</span></div>
+      <div class="btns"><button type="button" id="pbChange">Cambiar foto de esta pieza</button><button type="button" id="pbReset" hidden>Volver a la principal</button></div>
+    </div>
     <div class="strip" id="pieces" role="group" aria-label="Piezas"></div>
     <span class="status" id="renderStatus"></span>
   </main>
@@ -237,15 +248,15 @@ function data(){
   return {title:$("f_title").value.trim(),year:$("f_year").value.trim(),dir:$("f_dir").value.trim(),prod:$("f_prod").value.trim(),
     writer:$("f_writer").value.trim(),place:$("f_place").value.trim(),day,hour:$("f_hour").value.trim(),
     syn:$("f_syn").value.trim(),marks:$("f_marks").value.split(",").map(s=>s.trim()).filter(Boolean),
-    acc:accentOf(),fx1:+$("fx1").value/100,fx2:+$("fx2").value/100,pitch:Math.min(30,Math.max(1,+$("pitch").value||4.5))};
+    acc:accentOf(),pitch:Math.min(30,Math.max(1,+$("pitch").value||4.5))};
 }
 const slug=t=>t.toLowerCase().replace(/[\\/:*?"<>|]/g,"").trim()||"pieza";
 
 /* ---------- halftone (same recipe as the Figma pieces) ---------- */
-function halftone(img,W,H,fx,pitch){
+function halftone(img,W,H,fx,fy,pitch){
   const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
   const s=Math.max(W/img.width,H/img.height),dw=img.width*s,dh=img.height*s;
-  x.drawImage(img,(W-dw)*fx,(H-dh)/2,dw,dh);
+  x.drawImage(img,(W-dw)*fx,(H-dh)*fy,dw,dh);
   const id=x.getImageData(0,0,W,H),p=id.data,n=W*H,g=new Float32Array(n),hist=new Uint32Array(256);
   for(let i=0;i<n;i++){const v=(0.299*p[i*4]+0.587*p[i*4+1]+0.114*p[i*4+2])|0;g[i]=v;hist[v]++;}
   const pct=q=>{let a=0,t=q*n;for(let v=0;v<256;v++){a+=hist[v];if(a>=t)return v;}return 255;};
@@ -261,10 +272,10 @@ function halftone(img,W,H,fx,pitch){
   x.putImageData(id,0,0);return c;
 }
 const htCache=new Map();
-function photo(n,W,H,fx,pitch){
+function photo(n,W,H,fx,fy,pitch){
   const img=imgs[n];if(!img)return null;
-  const key=[n,W,H,fx,pitch,img.src.length].join("|");
-  if(!htCache.has(key)){if(htCache.size>24)htCache.clear();htCache.set(key,halftone(img,Math.round(W),Math.round(H),fx,pitch));}
+  const key=[n,W,H,fx,fy,pitch,img.src.length,img.src.slice(-24)].join("|");
+  if(!htCache.has(key)){if(htCache.size>24)htCache.clear();htCache.set(key,halftone(img,Math.round(W),Math.round(H),fx,fy,pitch));}
   return htCache.get(key);
 }
 
@@ -341,9 +352,21 @@ function longCredits(d){
   return s;
 }
 function synSegs(d){return runs(d.syn,d.marks).map(r=>({t:r.t,style:r.mark?d.acc:LIGHT}));}
-function imageBox(x,n,d,{x0,y0,w,h,fx,stroke,edge},scale){
-  const ph=photo(n,w*scale,h*scale,fx,d.pitch*scale*(PIECE_SCALE_REF));
-  if(ph)x.drawImage(ph,x0,y0,w,h);else{x.fillStyle="#3a3a36";x.fillRect(x0,y0,w,h);}
+/* each piece uses the shared photo (principal or segunda) unless it was given its own; framing is per piece */
+const DEF_SLOT={post:1,h1:1,a3:1,h2:2},DEF_FRAME={post:[.47,.5],h1:[.47,.5],a3:[.47,.5],h2:[.55,.5]};
+const BOXES={post:{x0:0,y0:0,w:1080,h:950},h1:{x0:0,y0:0,w:1080,h:1525},h2:{x0:0,y0:741,w:1080,h:1179},a3:{x0:0,y0:0,w:3508,h:3483}};
+let frames={},FAST=false;
+const slotOf=k=>imgs[k]?k:DEF_SLOT[k];
+const frameOf=k=>frames[k]||{x:DEF_FRAME[k][0],y:DEF_FRAME[k][1]};
+function imageBox(x,k,d,{stroke,edge},scale){
+  const {x0,y0,w,h}=BOXES[k],img=imgs[slotOf(k)],fr=frameOf(k);
+  if(img&&FAST){ // quick grey preview while dragging; the halftone comes back on release
+    const s=Math.max(w/img.width,h/img.height),dw=img.width*s,dh=img.height*s;
+    x.save();x.beginPath();x.rect(x0,y0,w,h);x.clip();x.filter="grayscale(1) contrast(1.15)";x.drawImage(img,x0+(w-dw)*fr.x,y0+(h-dh)*fr.y,dw,dh);x.restore();
+  }else{
+    const ph=photo(slotOf(k),w*scale,h*scale,fr.x,fr.y,d.pitch*scale*(PIECE_SCALE_REF));
+    if(ph)x.drawImage(ph,x0,y0,w,h);else{x.fillStyle="#3a3a36";x.fillRect(x0,y0,w,h);}
+  }
   x.fillStyle=LIGHT;if(edge==="bottom")x.fillRect(x0,y0+h-stroke,w,stroke);else x.fillRect(x0,y0,w,stroke);
 }
 let PIECE_SCALE_REF=1;
@@ -351,23 +374,23 @@ let PIECE_SCALE_REF=1;
 /* ---------- the five pieces (coordinates measured from the Figma file) ---------- */
 const PIECES=[
  {key:"post",label:"Post",suffix:"",W:1080,H:1350,draw(x,d,s){
-   PIECE_SCALE_REF=1;imageBox(x,1,d,{x0:0,y0:0,w:1080,h:950,fx:d.fx1,stroke:10,edge:"bottom"},s);
+   PIECE_SCALE_REF=1;imageBox(x,"post",d,{stroke:10,edge:"bottom"},s);
    bottomStack(x,d,{top:950,H:1350,cx:540,u:1,maxFs:135,W:982,credits:shortCredits(d),cFs:35,cW:900,cStep:42});}},
  {key:"sin",label:"Sinopsis",suffix:" sinopsis",W:1080,H:1350,draw(x,d){
    const f=`113px ${TF}`;x.font=f;x.fillStyle=paint(x,d.acc,50,x.measureText("SINÓPSIS").width);x.textAlign="left";x.fillText("SINÓPSIS",50,235.5+71.5+capH(x,f)/2);
    drawRich(x,synSegs(d),{font:`53px ${BF}`,left:50,top:390.5,W:980,step:64});}},
  {key:"h1",label:"Historia 1",suffix:" historia",W:1080,H:1920,draw(x,d,s){
-   PIECE_SCALE_REF=1;imageBox(x,1,d,{x0:0,y0:0,w:1080,h:1525,fx:d.fx1,stroke:10,edge:"bottom"},s);
+   PIECE_SCALE_REF=1;imageBox(x,"h1",d,{stroke:10,edge:"bottom"},s);
    bottomStack(x,d,{top:1525,H:1920,cx:540,u:1,maxFs:135,W:989,credits:shortCredits(d),cFs:35,cW:900,cStep:42});}},
  {key:"h2",label:"Historia 2",suffix:" historia 2",W:1080,H:1920,draw(x,d,s){
-   PIECE_SCALE_REF=1;imageBox(x,2,d,{x0:0,y0:741,w:1080,h:1179,fx:d.fx2,stroke:10,edge:"top"},s);
+   PIECE_SCALE_REF=1;imageBox(x,"h2",d,{stroke:10,edge:"top"},s);
    const top=drawTitle(x,d,{maxFs:123,W:900,left:91,bottom:352,align:"left"});
    let fs=53;const segs=synSegs(d);
    // shrink the synopsis if it would run into the photo
    for(;fs>36;fs-=2){const t=document.createElement("canvas").getContext("2d");const b=drawRich(t,segs,{font:`${fs}px ${BF}`,left:90,top:399,W:900,step:fs*1.21});if(b<=715)break;}
    drawRich(x,segs,{font:`${fs}px ${BF}`,left:90,top:399,W:900,step:fs*1.21});}},
  {key:"a3",label:"A3",suffix:" A3",W:3508,H:4961,draw(x,d,s){
-   PIECE_SCALE_REF=3508/1080;imageBox(x,1,d,{x0:0,y0:0,w:3508,h:3483,fx:d.fx1,stroke:33,edge:"bottom"},s);
+   PIECE_SCALE_REF=3508/1080;imageBox(x,"a3",d,{stroke:33,edge:"bottom"},s);
    bottomStack(x,d,{top:3483,H:4961,cx:1754,u:3508/1080,maxFs:520,W:3269,credits:longCredits(d),cFs:65,cW:3008,cStep:80});}},
 ];
 
@@ -388,8 +411,17 @@ let raf=0;
 function renderAll(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
   for(const p of PIECES)renderPiece(p,cards[p.key].canvas,220/p.H);
   renderPiece(cur,$("big"),Math.min(1,1700/cur.H));
-  $("curName").textContent=cur.label;$("curSize").textContent=`${cur.W}×${cur.H}`;
+  $("curName").textContent=cur.label;$("curSize").textContent=`${cur.W}×${cur.H}`;syncPhotoBar();
 });}
+function renderBig(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>renderPiece(cur,$("big"),Math.min(1,1700/cur.H)));}
+function syncPhotoBar(){
+  const k=cur.key,has=k in DEF_SLOT,img=has&&imgs[slotOf(k)];
+  $("photoBar").hidden=!has;$("big").classList.toggle("grab",!!img);if(!has)return;
+  const own=!!imgs[k],main=DEF_SLOT[k]===1;
+  if(img)$("thP").src=img.src;
+  $("pbName").textContent=own?"Esta pieza tiene su propia foto":main?"Usa la foto principal":"Usa la segunda foto";
+  $("pbReset").hidden=!own;$("pbReset").textContent=main?"Volver a la principal":"Volver a la segunda";
+}
 const accentCss=st=>st.length===1?st[0][1]:`linear-gradient(90deg,${st.map(([p,c])=>c+" "+Math.round(p*100)+"%").join(",")})`;
 const syncAccent=()=>{const st=accentOf(),r=document.documentElement.style;r.setProperty("--accent",st.length>2?st[0][1]:st[Math.floor(st.length/2)][1]);r.setProperty("--accent-bg",st.length===1?st[0][1]:accentCss(st.length===2?st:st));
   document.querySelectorAll(".sw").forEach(b=>b.setAttribute("aria-checked",b.dataset.key===$("f_accKey").value));};
@@ -419,11 +451,13 @@ $("findStills").onclick=async()=>{
     box.innerHTML="";
     for(const f of r.stills){
       const el=document.createElement("div");el.className="still";
-      el.innerHTML=`<img alt="" loading="lazy"><div class="pick"><button type="button" data-n="1">Principal</button><button type="button" data-n="2">Segunda</button></div>`;
+      el.innerHTML=`<img alt="" loading="lazy"><div class="pick"><button type="button" data-n="1">Principal</button><button type="button" data-n="2">Segunda</button><button type="button" data-n="p">Esta pieza</button></div>`;
       el.querySelector("img").src=f.thumb;
       el.querySelectorAll("button").forEach(b=>b.onclick=async()=>{
+        const n=b.dataset.n==="p"?(cur.key in DEF_SLOT?cur.key:null):+b.dataset.n;
+        if(!n){st.className="status warn";st.textContent="Elegí abajo una pieza con foto.";return;}
         st.className="status";st.textContent="Cargando la foto en alta…";
-        try{await setPhoto(+b.dataset.n,`/api/fotos?img=${encodeURIComponent(f.path)}`);st.className="status ok";st.textContent=b.dataset.n==="1"?"Foto principal lista.":"Segunda foto lista.";}
+        try{await setPhoto(n,`/api/fotos?img=${encodeURIComponent(f.path)}`);st.className="status ok";st.textContent=n===1?"Foto principal lista.":n===2?"Segunda foto lista.":`Foto de ${cur.label} lista.`;}
         catch(e){st.className="status warn";st.textContent="No se pudo cargar esa foto.";}
       });
       box.appendChild(el);
@@ -432,7 +466,24 @@ $("findStills").onclick=async()=>{
   }catch(e){st.className="status warn";st.textContent="No se pudieron buscar fotos.";}
   finally{$("findStills").disabled=false;}
 };
-async function setPhoto(n,src){imgs[n]=await loadImg(src);$("th"+n).src=src;htCache.clear();renderAll();}
+async function setPhoto(n,src){imgs[n]=await loadImg(src);if($("th"+n))$("th"+n).src=src;
+  for(const k in DEF_SLOT)if(slotOf(k)===n)delete frames[k];htCache.clear();renderAll();saveDraft();}
+$("pbChange").onclick=()=>$("fileP").click();
+$("fileP").onchange=()=>{const f=$("fileP").files[0];if(f&&cur.key in DEF_SLOT)setPhoto(cur.key,URL.createObjectURL(f));$("fileP").value="";};
+$("pbReset").onclick=()=>{delete imgs[cur.key];delete frames[cur.key];htCache.clear();renderAll();saveDraft();};
+/* framing: drag the photo inside the big preview */
+{const big=$("big");let drag=null;const clamp=v=>Math.min(1,Math.max(0,v));
+  big.addEventListener("pointerdown",e=>{
+    const k=cur.key;if(!(k in DEF_SLOT))return;const img=imgs[slotOf(k)];if(!img)return;
+    const r=big.getBoundingClientRect(),sc=cur.W/r.width,px=(e.clientX-r.left)*sc,py=(e.clientY-r.top)*sc,b=BOXES[k];
+    if(px<b.x0||px>b.x0+b.w||py<b.y0||py>b.y0+b.h)return;
+    e.preventDefault();big.setPointerCapture(e.pointerId);const s=Math.max(b.w/img.width,b.h/img.height);
+    drag={k,sc,sx:e.clientX,sy:e.clientY,f:{...frameOf(k)},ex:img.width*s-b.w,ey:img.height*s-b.h};FAST=true;big.classList.add("grabbing");});
+  big.addEventListener("pointermove",e=>{if(!drag)return;
+    const dx=(e.clientX-drag.sx)*drag.sc,dy=(e.clientY-drag.sy)*drag.sc;
+    frames[drag.k]={x:drag.ex>1?clamp(drag.f.x-dx/drag.ex):drag.f.x,y:drag.ey>1?clamp(drag.f.y-dy/drag.ey):drag.f.y};renderBig();});
+  const end=()=>{if(!drag)return;drag=null;FAST=false;big.classList.remove("grabbing");renderAll();saveDraft();};
+  big.addEventListener("pointerup",end);big.addEventListener("pointercancel",end);}
 for(const n of [1,2]){
   const drop=$("drop"+n),file=$("file"+n);
   drop.onclick=()=>file.click();drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();file.click();}};
@@ -504,9 +555,9 @@ No inventes créditos: si dudás, dejá el campo vacío.`,{modelTier:"default"})
 };
 
 /* ---------- remember the last film in this browser ---------- */
-const FIELDS=["f_title","f_year","f_dir","f_prod","f_writer","f_place","f_date","f_hour","f_syn","f_marks","f_acc","f_accKey","fx1","fx2","pitch"];
-function saveDraft(){try{localStorage.setItem("taller-draft-2",JSON.stringify(Object.fromEntries(FIELDS.map(f=>[f,$(f).value]))));}catch(e){}}
-function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft-2")||"null");if(d){FIELDS.forEach(f=>{if(d[f]!=null)$(f).value=d[f];});return true;}}catch(e){}return false;}
+const FIELDS=["f_title","f_year","f_dir","f_prod","f_writer","f_place","f_date","f_hour","f_syn","f_marks","f_acc","f_accKey","pitch"];
+function saveDraft(){try{localStorage.setItem("taller-draft-2",JSON.stringify({...Object.fromEntries(FIELDS.map(f=>[f,$(f).value])),frames}));}catch(e){}}
+function loadDraft(){try{const d=JSON.parse(localStorage.getItem("taller-draft-2")||"null");if(d){FIELDS.forEach(f=>{if(d[f]!=null)$(f).value=d[f];});if(d.frames)for(const k in DEF_SLOT)if(d.frames[k])frames[k]=d.frames[k];return true;}}catch(e){}return false;}
 
 /* ---------- boot ---------- */
 (async()=>{
